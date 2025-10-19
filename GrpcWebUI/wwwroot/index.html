@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>gRPC Demo - Flow Visualization</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .demo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .demo-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .demo-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        }
+
+        .demo-card h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.4em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .demo-card p {
+            margin-bottom: 20px;
+            line-height: 1.6;
+            color: #666;
+        }
+
+        .demo-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .log-area {
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 20px;
+            border: 2px solid #333;
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 5px;
+            border-radius: 4px;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .log-entry.request {
+            background: rgba(0, 123, 255, 0.1);
+            border-left: 4px solid #007bff;
+        }
+
+        .log-entry.response {
+            background: rgba(40, 167, 69, 0.1);
+            border-left: 4px solid #28a745;
+        }
+
+        .log-entry.error {
+            background: rgba(220, 53, 69, 0.1);
+            border-left: 4px solid #dc3545;
+        }
+
+        .log-entry.info {
+            background: rgba(255, 193, 7, 0.1);
+            border-left: 4px solid #ffc107;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-online { background: #28a745; }
+        .status-offline { background: #dc3545; }
+        .status-connecting { background: #ffc107; }
+
+        .clear-btn {
+            background: #dc3545;
+            margin-top: 10px;
+        }
+
+        .clear-btn:hover {
+            background: #c82333;
+        }
+
+        .flow-diagram {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .flow-diagram h3 {
+            color: #667eea;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .flow-step {
+            display: flex;
+            align-items: center;
+            margin: 15px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .flow-step .icon {
+            font-size: 24px;
+            margin-right: 15px;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .flow-step .content {
+            flex: 1;
+        }
+
+        .flow-step .content h4 {
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        .flow-step .content p {
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 gRPC Demo - Flow Visualization</h1>
+            <p>Understand different types of gRPC communication in real-time</p>
+        </div>
+
+        <div class="demo-grid">
+            <!-- Unary Call -->
+            <div class="demo-card">
+                <h3>📞 Unary Call</h3>
+                <p>One call, one response. The simplest and most common pattern.</p>
+                <div class="demo-controls">
+                    <div class="input-group">
+                        <input type="text" id="unaryMessage" placeholder="Enter your message" value="Hello gRPC!">
+                        <button onclick="demoUnary()">Send</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Server Streaming -->
+            <div class="demo-card">
+                <h3>📡 Server Streaming</h3>
+                <p>One client call, multiple server responses. Ideal for notifications.</p>
+                <div class="demo-controls">
+                    <div class="input-group">
+                        <input type="text" id="serverStreamMessage" placeholder="Initial message" value="Start streaming">
+                        <button onclick="demoServerStreaming()">Start</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Client Streaming -->
+            <div class="demo-card">
+                <h3>📤 Client Streaming</h3>
+                <p>Multiple client calls, one final server response. Perfect for uploads.</p>
+                <div class="demo-controls">
+                    <div class="input-group">
+                        <input type="text" id="clientStreamMessage" placeholder="Message to send" value="Message">
+                        <button onclick="addClientMessage()">Add</button>
+                    </div>
+                    <button onclick="demoClientStreaming()">Send All</button>
+                </div>
+            </div>
+
+            <!-- Bidirectional Streaming -->
+            <div class="demo-card">
+                <h3>🔄 Bidirectional Streaming</h3>
+                <p>Real-time bidirectional communication. Perfect for chats or games.</p>
+                <div class="demo-controls">
+                    <div class="input-group">
+                        <input type="text" id="bidirectionalMessage" placeholder="Message" value="Echo test">
+                        <button onclick="sendBidirectionalMessage()">Send</button>
+                    </div>
+                    <button onclick="toggleBidirectionalStream()">Start/Stop</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Flow diagram -->
+        <div class="flow-diagram">
+            <h3>📊 gRPC Flow Diagram</h3>
+            
+            <div class="flow-step">
+                <div class="icon">📞</div>
+                <div class="content">
+                    <h4>Unary Call</h4>
+                    <p>Client → Server → Client (1 request, 1 response)</p>
+                </div>
+            </div>
+
+            <div class="flow-step">
+                <div class="icon">📡</div>
+                <div class="content">
+                    <h4>Server Streaming</h4>
+                    <p>Client → Server → Client (1 request, N responses)</p>
+                </div>
+            </div>
+
+            <div class="flow-step">
+                <div class="icon">📤</div>
+                <div class="content">
+                    <h4>Client Streaming</h4>
+                    <p>Client → Server → Client (N requests, 1 response)</p>
+                </div>
+            </div>
+
+            <div class="flow-step">
+                <div class="icon">🔄</div>
+                <div class="content">
+                    <h4>Bidirectional Streaming</h4>
+                    <p>Client ↔ Server (N requests, N responses)</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Log area -->
+        <div class="log-area" id="logArea">
+            <div class="log-entry info">
+                <span class="status-indicator status-connecting"></span>
+                🚀 gRPC Demo interface ready! Connect to server to start.
+            </div>
+        </div>
+
+        <button class="clear-btn" onclick="clearLogs()">🗑️ Clear logs</button>
+    </div>
+
+    <script>
+        let bidirectionalStream = null;
+        let clientMessages = [];
+
+        function addLogEntry(message, type = 'info') {
+            const logArea = document.getElementById('logArea');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${type}`;
+            logEntry.innerHTML = `<span class="status-indicator status-${type === 'error' ? 'offline' : 'online'}"></span> [${timestamp}] ${message}`;
+            logArea.appendChild(logEntry);
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        function clearLogs() {
+            document.getElementById('logArea').innerHTML = '';
+            addLogEntry('🚀 Logs cleared. Ready for new tests!', 'info');
+        }
+
+        async function demoUnary() {
+            const message = document.getElementById('unaryMessage').value;
+            if (!message) return;
+
+            addLogEntry(`📞 Sending Unary call: "${message}"`, 'request');
+            
+            try {
+                // Simulate gRPC call (in reality, you would use a gRPC-Web client)
+                const response = await simulateUnaryCall(message);
+                addLogEntry(`✅ Unary Response received: "${response}"`, 'response');
+            } catch (error) {
+                addLogEntry(`❌ Error Unary: ${error.message}`, 'error');
+            }
+        }
+
+        async function demoServerStreaming() {
+            const message = document.getElementById('serverStreamMessage').value;
+            if (!message) return;
+
+            addLogEntry(`📡 Starting Server Streaming: "${message}"`, 'request');
+            
+            try {
+                // Simulate server streaming
+                for (let i = 1; i <= 5; i++) {
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    const response = `Streaming message ${i}/5 for: ${message}`;
+                    addLogEntry(`📨 Response ${i}/5: "${response}"`, 'response');
+                }
+                addLogEntry(`✅ Server Streaming completed`, 'info');
+            } catch (error) {
+                addLogEntry(`❌ Error Server Streaming: ${error.message}`, 'error');
+            }
+        }
+
+        function addClientMessage() {
+            const message = document.getElementById('clientStreamMessage').value;
+            if (!message) return;
+            
+            clientMessages.push(message);
+            addLogEntry(`📤 Message added to queue: "${message}" (Total: ${clientMessages.length})`, 'info');
+            document.getElementById('clientStreamMessage').value = '';
+        }
+
+        async function demoClientStreaming() {
+            if (clientMessages.length === 0) {
+                addLogEntry(`⚠️ No messages to send. Add messages first.`, 'error');
+                return;
+            }
+
+            addLogEntry(`📤 Starting Client Streaming with ${clientMessages.length} messages`, 'request');
+            
+            try {
+                // Simulate sending all messages
+                for (let i = 0; i < clientMessages.length; i++) {
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    addLogEntry(`📤 Message ${i + 1}/${clientMessages.length} sent: "${clientMessages[i]}"`, 'request');
+                }
+
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                const response = `Processed ${clientMessages.length} messages: ${clientMessages.join(', ')}`;
+                addLogEntry(`✅ Final response: "${response}"`, 'response');
+                
+                clientMessages = [];
+            } catch (error) {
+                addLogEntry(`❌ Error Client Streaming: ${error.message}`, 'error');
+            }
+        }
+
+        async function sendBidirectionalMessage() {
+            const message = document.getElementById('bidirectionalMessage').value;
+            if (!message) return;
+
+            addLogEntry(`🔄 Bidirectional message sent: "${message}"`, 'request');
+            
+            try {
+                // Simulate immediate response
+                await new Promise(resolve => setTimeout(resolve, 500));
+                const response = `Bidirectional echo: ${message}`;
+                addLogEntry(`🔄 Bidirectional response: "${response}"`, 'response');
+            } catch (error) {
+                addLogEntry(`❌ Error Bidirectional: ${error.message}`, 'error');
+            }
+        }
+
+        function toggleBidirectionalStream() {
+            const button = event.target;
+            
+            if (!bidirectionalStream) {
+                bidirectionalStream = true;
+                button.textContent = 'Stop Stream';
+                addLogEntry(`🔄 Bidirectional Streaming started`, 'info');
+            } else {
+                bidirectionalStream = null;
+                button.textContent = 'Start Stream';
+                addLogEntry(`🛑 Bidirectional Streaming stopped`, 'info');
+            }
+        }
+
+        // Simulate gRPC calls (in reality, you would use gRPC-Web)
+        async function simulateUnaryCall(message) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+            return `Hello ${message} ! Processed by server.`;
+        }
+
+        // Initialization
+        document.addEventListener('DOMContentLoaded', function() {
+            addLogEntry('🎯 Interface loaded. You can now test different gRPC flows!', 'info');
+        });
+    </script>
+</body>
+</html>

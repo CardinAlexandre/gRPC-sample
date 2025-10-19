@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+package demo;
+
+// Service qui démontre tous les types de flux gRPC
+service GrpcDemoService {
+  // 1. UNARY - Un appel, une réponse
+  rpc UnaryCall(UnaryRequest) returns (UnaryResponse);
+  
+  // 2. SERVER STREAMING - Un appel, plusieurs réponses
+  rpc ServerStreaming(StreamingRequest) returns (stream StreamingResponse);
+  
+  // 3. CLIENT STREAMING - Plusieurs appels, une réponse
+  rpc ClientStreaming(stream StreamingRequest) returns (StreamingResponse);
+  
+  // 4. BIDIRECTIONAL STREAMING - Plusieurs appels, plusieurs réponses
+  rpc BidirectionalStreaming(stream StreamingRequest) returns (stream StreamingResponse);
+  
+  // 5. Exemple avec des métadonnées et statuts
+  rpc GetServerInfo(google.protobuf.Empty) returns (ServerInfo);
+}
+
+// Messages pour les appels unary
+message UnaryRequest {
+  string message = 1;
+  int32 client_id = 2;
+  string timestamp = 3;
+}
+
+message UnaryResponse {
+  string response = 1;
+  int32 server_id = 2;
+  string timestamp = 3;
+  string processing_time_ms = 4;
+}
+
+// Messages pour les appels streaming
+message StreamingRequest {
+  string message = 1;
+  int32 sequence_number = 2;
+  string client_id = 3;
+}
+
+message StreamingResponse {
+  string response = 1;
+  int32 sequence_number = 2;
+  string server_id = 3;
+  string timestamp = 4;
+  string stream_type = 5; // "server_stream", "client_stream", "bidirectional"
+}
+
+// Information du serveur
+message ServerInfo {
+  string server_name = 1;
+  string version = 2;
+  string start_time = 3;
+  int32 active_connections = 4;
+  repeated string supported_features = 5;
+}

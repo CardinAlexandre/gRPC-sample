@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package chat;
+
+// Service de chat pour la communication entre clients
+service ChatService {
+  // Streaming bidirectionnel pour le chat
+  rpc Chat(stream ChatMessage) returns (stream ChatMessage);
+}
+
+// Message de chat
+message ChatMessage {
+  string client_id = 1;
+  string message = 2;
+  string timestamp = 3;
+  string message_type = 4; // "chat", "system", "join", "leave"
+}
